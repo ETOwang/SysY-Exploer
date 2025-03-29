@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SysY Compiler Explorer</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/clike/clike.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/selection/active-line.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/javascript/javascript.min.js"></script>
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <h1>SysY Compiler Explorer</h1>
+        </div>
+        <nav>
+            <a href="#" class="active">Home</a>
+            <a href="https://github.com/ETOwang/SysY-Compiler" target="_blank">GitHub</a>
+            <a href="#about">About</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <div class="panel source-panel">
+            <div class="panel-header">
+                <h2>SysY Source Code</h2>
+                <div class="controls">
+                    <select id="example-select" title="Load example">
+                        <option value="">Select an example...</option>
+                        <option value="example1">Simple Function</option>
+                        <option value="example2">Array Manipulation</option>
+                        <option value="example3">Recursive Fibonacci</option>
+                        <option value="example4">Matrix Multiplication</option>
+                    </select>
+                </div>
+            </div>
+            <div class="editor-wrapper">
+                <textarea id="source-editor"></textarea>
+            </div>
+        </div>
+
+        <div class="options-panel">
+            <div class="option-group">
+                <label for="target-arch">Target Architecture:</label>
+                <select id="target-arch">
+                    <option value="arm">ARM (default)</option>
+                    <option value="riscv">RISC-V</option>
+                </select>
+            </div>
+            <div class="option-group">
+                <label for="output-format">Output Format:</label>
+                <select id="output-format">
+                    <option value="assembly">Assembly</option>
+                    <option value="llvm">LLVM IR</option>
+                </select>
+            </div>
+            <div class="option-group">
+                <label for="optimization">Optimization Level:</label>
+                <select id="optimization">
+                    <option value="O0">-O0 (No optimization)</option>
+                    <option value="O1">-O1</option>
+                    <option value="O2">-O2</option>
+                </select>
+            </div>
+            <button id="compile-btn" class="compile-btn">
+                <i class="fas fa-play"></i> Compile
+            </button>
+        </div>
+
+        <div class="panel output-panel">
+            <div class="panel-header">
+                <h2>Compilation Output</h2>
+                <div class="controls">
+                    <button id="copy-output" title="Copy to clipboard">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="editor-wrapper">
+                <textarea id="output-editor"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel info-panel">
+        <div class="panel-header">
+            <h2>Compiler Information</h2>
+        </div>
+        <div class="info-content">
+            <p>SysY Compiler Status: <span class="status-ok">Demo Mode</span></p>
+            <p>Note: This is a demonstration of the SysY Compiler. In this web version, compilation results are pre-generated examples.</p>
+            <p>For full functionality, please <a href="https://github.com/ETOwang/SysY-Compiler" target="_blank">download the compiler</a> and run it locally.</p>
+        </div>
+    </div>
+
+    <footer>
+        <div id="about" class="about-section">
+            <h2>About SysY Compiler</h2>
+            <p>A powerful compiler for the SysY programming language, a subset of C used for educational purposes. This compiler translates SysY source code into LLVM IR, ARM assembly, or RISC-V assembly.</p>
+            <h3>Features</h3>
+            <ul>
+                <li><strong>Complete Compilation Pipeline</strong>: Lexical analysis, syntax parsing, semantic analysis, IR generation, optimization, and assembly code generation</li>
+                <li><strong>Multiple Target Architectures</strong>: Support for both ARM (default) and RISC-V backends</li>
+                <li><strong>Optimization Levels</strong>: Different optimization strategies (-O0, -O1, -O2)</li>
+                <li><strong>LLVM IR Generation</strong>: Option to emit LLVM Intermediate Representation</li>
+                <li><strong>Rich Optimization Techniques</strong>: Includes strength reduction, dead code elimination, loop optimizations, and more</li>
+            </ul>
+        </div>
+        <div class="copyright">
+            <p>&copy; 2023 SysY Compiler. Licensed under Apache License 2.0.</p>
+            <p>View the <a href="https://github.com/ETOwang/SysY-Compiler" target="_blank">GitHub repository</a>.</p>
+        </div>
+    </footer>
+
+    <script src="examples.js"></script>
+    <script src="script.js"></script>
+</body>
+</html> 
