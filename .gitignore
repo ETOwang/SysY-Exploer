@@ -14,4 +14,12 @@ Thumbs.db
 *.ntvs*
 *.njsproj
 *.sln
-*.sw? 
+*.sw?
+
+# Temporary directories
+node_modules/
+/temp/
+/.cache/
+
+# SysY Compiler Service temporary directory
+/SysY-Compiler-Service/ 
