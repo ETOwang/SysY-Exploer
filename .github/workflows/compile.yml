@@ -1,0 +1,163 @@
+name: SysY Compiler Service
+
+on:
+  repository_dispatch:
+    types: [compile-request]
+  workflow_dispatch:
+    inputs:
+      code:
+        description: 'SysY code to compile'
+        required: true
+        type: string
+      targetArch:
+        description: 'Target architecture (arm or riscv)'
+        required: true
+        default: 'arm'
+        type: choice
+        options:
+          - arm
+          - riscv
+      outputFormat:
+        description: 'Output format (assembly or llvm)'
+        required: true
+        default: 'assembly'
+        type: choice
+        options:
+          - assembly
+          - llvm
+      optimization:
+        description: 'Optimization level (O0, O1, O2)'
+        required: true
+        default: 'O0'
+        type: choice
+        options:
+          - O0
+          - O1
+          - O2
+      requestId:
+        description: 'Unique request ID'
+        required: true
+        type: string
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'adopt'
+          java-version: '17'
+
+      - name: Download SysY Compiler
+        run: |
+          wget https://github.com/ETOwang/SysY-Compiler/releases/download/v1.0.0/compiler-1.0-SNAPSHOT-jar-with-dependencies.jar -O compiler.jar
+
+      - name: Create source file
+        run: |
+          mkdir -p temp
+          echo '${{ github.event.client_payload.code || github.event.inputs.code }}' > temp/input.sy
+          cat temp/input.sy
+
+      - name: Compile SysY code
+        id: compile
+        run: |
+          TARGET_ARCH="${{ github.event.client_payload.targetArch || github.event.inputs.targetArch }}"
+          OUTPUT_FORMAT="${{ github.event.client_payload.outputFormat || github.event.inputs.outputFormat }}"
+          OPTIMIZATION="${{ github.event.client_payload.optimization || github.event.inputs.optimization }}"
+          REQUEST_ID="${{ github.event.client_payload.requestId || github.event.inputs.requestId }}"
+          
+          COMPILE_CMD="java -jar ./compiler.jar temp/input.sy"
+          
+          if [ "$OUTPUT_FORMAT" == "llvm" ]; then
+            COMPILE_CMD="$COMPILE_CMD --emit-llvm"
+          else
+            COMPILE_CMD="$COMPILE_CMD -S"
+          fi
+          
+          if [ "$TARGET_ARCH" == "riscv" ]; then
+            COMPILE_CMD="$COMPILE_CMD --target riscv"
+          fi
+          
+          if [ "$OPTIMIZATION" == "O1" ] || [ "$OPTIMIZATION" == "O2" ]; then
+            COMPILE_CMD="$COMPILE_CMD -$OPTIMIZATION"
+          fi
+          
+          COMPILE_CMD="$COMPILE_CMD -o temp/output"
+          
+          echo "Running: $COMPILE_CMD"
+          $COMPILE_CMD || echo "Compilation failed with error code $?" > temp/error.txt
+          
+          if [ -f temp/output ]; then
+            cat temp/output > temp/result.txt
+            echo "success=true" >> $GITHUB_OUTPUT
+          elif [ -f temp/error.txt ]; then
+            cat temp/error.txt > temp/result.txt
+            echo "success=false" >> $GITHUB_OUTPUT
+          else
+            echo "Unknown error occurred" > temp/result.txt
+            echo "success=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # Base64 encode the result to handle newlines
+          RESULT_B64=$(base64 -w 0 temp/result.txt)
+          echo "result_b64=$RESULT_B64" >> $GITHUB_OUTPUT
+          echo "request_id=$REQUEST_ID" >> $GITHUB_OUTPUT
+
+      - name: Create result gist
+        uses: actions/github-script@v6
+        env:
+          REQUEST_ID: ${{ steps.compile.outputs.request_id }}
+          RESULT_B64: ${{ steps.compile.outputs.result_b64 }}
+          SUCCESS: ${{ steps.compile.outputs.success }}
+        with:
+          github-token: ${{ secrets.GIST_TOKEN }}
+          script: |
+            const fs = require('fs');
+            
+            // Decode the base64 result
+            const resultBuffer = Buffer.from(process.env.RESULT_B64, 'base64');
+            const compilationResult = resultBuffer.toString('utf8');
+            
+            // Create a gist with the result
+            const requestId = process.env.REQUEST_ID;
+            const isSuccess = process.env.SUCCESS === 'true';
+            
+            const gistContent = {
+              files: {
+                'result.txt': {
+                  content: compilationResult
+                },
+                'metadata.json': {
+                  content: JSON.stringify({
+                    requestId: requestId,
+                    success: isSuccess,
+                    timestamp: new Date().toISOString()
+                  }, null, 2)
+                }
+              },
+              description: `SysY Compilation Result - ${requestId}`,
+              public: true
+            };
+            
+            try {
+              // Create the gist
+              const response = await github.rest.gists.create(gistContent);
+              console.log(`Created gist: ${response.data.html_url}`);
+              
+              // Add a comment to the workflow run with the gist URL
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: `## Compilation Result\n\nResult available at: ${response.data.html_url}\n\n${isSuccess ? '✅ Success' : '❌ Failed'}`
+              }).catch(e => {
+                // This might fail for workflow_dispatch events, which is fine
+                console.log('Note: Could not add comment to workflow run');
+              });
+            } catch (error) {
+              console.error(`Error creating gist: ${error.message}`);
+            } 

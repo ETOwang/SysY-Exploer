@@ -68,9 +68,14 @@
                     <option value="O2">-O2</option>
                 </select>
             </div>
+            <div class="option-group checkbox-group">
+                <input type="checkbox" id="use-examples" checked>
+                <label for="use-examples">Use pre-compiled examples (faster)</label>
+            </div>
             <button id="compile-btn" class="compile-btn">
                 <i class="fas fa-play"></i> Compile
             </button>
+            <div id="compile-status" class="compile-status" style="display: none;"></div>
         </div>
 
         <div class="panel output-panel">
@@ -93,9 +98,10 @@
             <h2>Compiler Information</h2>
         </div>
         <div class="info-content">
-            <p>SysY Compiler Status: <span class="status-ok">Demo Mode</span></p>
-            <p>Note: This is a demonstration of the SysY Compiler. In this web version, compilation results are pre-generated examples.</p>
-            <p>For full functionality, please <a href="https://github.com/ETOwang/SysY-Compiler" target="_blank">download the compiler</a> and run it locally.</p>
+            <p>SysY Compiler Status: <span id="backend-status" class="status-checking">Checking...</span></p>
+            <p>This web application interfaces with the SysY Compiler via a cloud-based API. You can compile your own SysY code and see the results in real-time.</p>
+            <p>For improved reliability and performance, you can also <a href="https://github.com/ETOwang/SysY-Compiler" target="_blank">download the compiler</a> and run it locally.</p>
+            <div id="backend-info"></div>
         </div>
     </div>
 
@@ -119,6 +125,8 @@
     </footer>
 
     <script src="examples.js"></script>
+    <script src="github-compiler-api.js"></script>
     <script src="script.js"></script>
+    <script src="backend-check.js"></script>
 </body>
 </html> 

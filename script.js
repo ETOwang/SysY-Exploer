@@ -1,5 +1,11 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize CodeMirror for source editor
+    // 初始化 GitHub 编译器服务
+    const compilerService = new GithubCompilerService({
+        owner: 'ETOwang', // 替换为您的 GitHub 用户名
+        debug: true
+    });
+    
+    // 初始化CodeMirror编辑器
     const sourceEditor = CodeMirror.fromTextArea(document.getElementById('source-editor'), {
         mode: 'text/x-csrc',
         theme: 'dracula',
@@ -14,7 +20,7 @@ document.addEventListener('DOMContentLoaded', function() {
         viewportMargin: Infinity
     });
 
-    // Initialize CodeMirror for output editor
+    // 初始化输出编辑器
     const outputEditor = CodeMirror.fromTextArea(document.getElementById('output-editor'), {
         mode: 'text/x-csrc',
         theme: 'dracula',
@@ -23,66 +29,118 @@ document.addEventListener('DOMContentLoaded', function() {
         viewportMargin: Infinity
     });
 
-    // Set initial content
+    // 显示编译过程状态
+    const compileStatusElement = document.getElementById('compile-status');
+    function showStatus(message, isError = false) {
+        compileStatusElement.textContent = message;
+        compileStatusElement.className = isError ? 'status-error' : 'status-ok';
+        compileStatusElement.style.display = 'block';
+    }
+
+    function hideStatus() {
+        compileStatusElement.style.display = 'none';
+    }
+
+    // 设置初始内容
     sourceEditor.setValue('// Write your SysY code here\nint main() {\n    return 0;\n}');
     outputEditor.setValue('// Compilation output will appear here');
 
-    // Example selection handler
+    // 示例选择处理
     document.getElementById('example-select').addEventListener('change', function() {
         const selectedExample = this.value;
         if (selectedExample && examples[selectedExample]) {
             sourceEditor.setValue(examples[selectedExample].code);
             
-            // Reset output when a new example is selected
+            // 重置输出
             outputEditor.setValue('// Compilation output will appear here');
+            hideStatus();
         }
     });
 
-    // Compile button handler
-    document.getElementById('compile-btn').addEventListener('click', function() {
+    // 编译按钮事件处理
+    document.getElementById('compile-btn').addEventListener('click', async function() {
+        const compileBtn = this;
+        const originalBtnText = compileBtn.innerHTML;
+        
+        // 显示加载状态
+        compileBtn.disabled = true;
+        compileBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Compiling...';
+        showStatus('Preparing compilation...');
+        
         const sourceCode = sourceEditor.getValue();
         const targetArch = document.getElementById('target-arch').value;
         const outputFormat = document.getElementById('output-format').value;
         const optimization = document.getElementById('optimization').value;
         
-        // In a real implementation, this would send a request to a server
-        // For this demo, we'll use pre-compiled examples
-        
-        const selectedExample = document.getElementById('example-select').value;
-        
-        if (selectedExample && examples[selectedExample]) {
-            const example = examples[selectedExample];
+        try {
+            // 检查是否选择了示例
+            const selectedExample = document.getElementById('example-select').value;
             
-            let output;
-            if (outputFormat === 'llvm') {
-                output = example.llvm[optimization] || 'LLVM IR not available for this optimization level';
-            } else { // assembly
-                if (targetArch === 'arm') {
-                    output = example.arm[optimization] || 'ARM assembly not available for this optimization level';
-                } else { // riscv
-                    output = example.riscv[optimization] || 'RISC-V assembly not available for this optimization level';
+            if (selectedExample && examples[selectedExample] && document.getElementById('use-examples').checked) {
+                // 使用预编译示例
+                const example = examples[selectedExample];
+                
+                let output;
+                if (outputFormat === 'llvm') {
+                    output = example.llvm[optimization] || 'LLVM IR not available for this optimization level';
+                } else { // assembly
+                    if (targetArch === 'arm') {
+                        output = example.arm[optimization] || 'ARM assembly not available for this optimization level';
+                    } else { // riscv
+                        output = example.riscv[optimization] || 'RISC-V assembly not available for this optimization level';
+                    }
+                }
+                
+                outputEditor.setValue(output);
+                showStatus('Compilation completed using pre-compiled example');
+            } else {
+                // 使用 GitHub Actions 编译服务
+                showStatus('Initiating GitHub Actions compilation...');
+                
+                const result = await compilerService.compileCode(sourceCode, {
+                    targetArch,
+                    outputFormat,
+                    optimization
+                });
+                
+                if (result.success) {
+                    outputEditor.setValue(result.output);
+                    showStatus('GitHub Actions workflow triggered. Follow instructions in output.');
+                } else {
+                    outputEditor.setValue(result.errors || 'Failed to trigger GitHub Actions workflow');
+                    showStatus('Failed to initiate compilation', true);
                 }
             }
-            
-            outputEditor.setValue(output);
-        } else {
-            // If it's not a preset example, show a demo message
-            outputEditor.setValue('Demo mode: This web demonstration only shows compilation results for the preset examples.\n\nPlease select an example from the dropdown menu, or download the full compiler to compile your own code.');
+        } catch (error) {
+            console.error('Compilation error:', error);
+            outputEditor.setValue(`Error: ${error.message}\n\nNote: If you're seeing this error, it might be because of a problem with the GitHub Actions service. You can still use the demo mode with pre-compiled examples.`);
+            showStatus('Error initiating compilation', true);
+        } finally {
+            // 恢复按钮状态
+            compileBtn.disabled = false;
+            compileBtn.innerHTML = originalBtnText;
         }
     });
 
-    // Copy output button handler
+    // 复制输出按钮处理
     document.getElementById('copy-output').addEventListener('click', function() {
         const outputText = outputEditor.getValue();
         navigator.clipboard.writeText(outputText).then(() => {
-            // You could add a temporary visual feedback here
-            alert('Output copied to clipboard!');
+            // 提供临时视觉反馈
+            const originalTitle = this.title;
+            this.title = 'Copied!';
+            this.innerHTML = '<i class="fas fa-check"></i>';
+            setTimeout(() => {
+                this.title = originalTitle;
+                this.innerHTML = '<i class="fas fa-copy"></i>';
+            }, 2000);
         }).catch(err => {
             console.error('Error copying text: ', err);
+            alert('Failed to copy to clipboard');
         });
     });
     
-    // Set the mode based on output format selection
+    // 根据输出格式设置编辑器模式
     document.getElementById('output-format').addEventListener('change', function() {
         if (this.value === 'llvm') {
             outputEditor.setOption('mode', 'text/x-llvm');
@@ -91,7 +149,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Initial setup for responsive layout
+    // 初始响应式布局设置
     function handleResize() {
         if (window.innerWidth < 1200) {
             document.querySelector('.container').style.gridTemplateColumns = '1fr';
@@ -101,5 +159,5 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     window.addEventListener('resize', handleResize);
-    handleResize(); // Initial call
+    handleResize(); // 初始调用
 }); 
